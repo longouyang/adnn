@@ -15,6 +15,83 @@ Math.sigmoid = function(x) { return 1 / (1 + Math.exp(-x)); };
 
 // Scalar & tensor operators and math functions -------------------------------
 
+function isNumber(obj) {
+    return Object.prototype.toString.call(obj) === '[object Number]';
+}
+
+var Support = {};
+Support.isFinite = function(s) {
+  return typeof s.lower == 'undefined' && typeof s.upper == 'undefined';
+}
+
+// would be easier to do if we read this off from dist rather than support
+Support.isContinuous = function() {
+  // TODO
+}
+
+function min(xs) {
+  return Math.min.apply(null, xs)
+}
+
+function max(xs) {
+  return Math.max.apply(null, xs)
+}
+
+function cartesianProduct(as,bs) {
+  var r = [];
+  for(var i = 0, ii = as.length; i < ii; i++) {
+    var a = as[i];
+    for(var j = 0, jj = bs.length; j < jj; j++) {
+      var b = bs[j];
+      r.push([a,b])
+    }
+  }
+  return r;
+}
+
+Support.lower = function(s) {
+  if (Support.isFinite(s)) {
+    return min(s)
+  } else {
+    return s.lower
+  }
+}
+
+Support.upper = function(s) {
+  if (Support.isFinite(s)) {
+    return max(s)
+  } else {
+    return s.upper
+  }
+}
+
+var _add = function(x,y) {
+	if (isNumber(x) && isNumber(y)) {
+    var z = new Number(x + y);
+    var sx = x.support, sy = y.support;
+		if (sx && sy) {
+
+      if (Support.isFinite(sx) && Support.isFinite(sy)) {
+        var product = cartesianProduct(sx,sy);
+        z.support = product.map(function(pair) { return pair[0] + pair[1]});
+      } else {
+			  z.support = {
+				  lower: Support.lower(sx) + Support.lower(sy),
+				  upper: Support.upper(sx) + Support.upper(sy)
+			  };
+      }
+			return z
+		} else if (sx || sy) {
+      z.support = sx ? {lower: Support.lower(sx) + y, upper: Support.upper(sx) + y}
+      : {lower: Support.lower(sy) + x, upper: Support.upper(sy) + x};
+		}
+
+    return z
+	} else {
+		return x + y;
+	}
+}
+
 function makeFunctions(OutputType) {
 
 	var fns = {};
@@ -45,7 +122,7 @@ function makeFunctions(OutputType) {
 	var binops = {
 		add: OutputType === Tensor ?
 			function(x, y) { return x.add(y); } :
-			function(x, y) { return x + y; },
+			function(x, y) { return _add(x, y); },
 		sub: OutputType === Tensor ?
 			function(x, y) { return x.sub(y); } :
 			function(x, y) { return x - y; },
@@ -527,6 +604,3 @@ fns.tensor.softmax = func.newUnaryFunction({
 
 
 module.exports = fns;
-
-
-
